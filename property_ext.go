@@ -1,6 +1,7 @@
 package restfulspec
 
 import (
+	"github.com/gogo/protobuf/proto"
 	"reflect"
 	"strconv"
 	"strings"
@@ -53,6 +54,24 @@ func setEnumValues(prop *spec.Schema, field reflect.StructField) {
 			enums = append(enums, s)
 		}
 		prop.Enum = enums
+		return
+	}
+	if protoTag := field.Tag.Get("protobuf"); protoTag != "" {
+		var typeName string
+		for _, s := range strings.Split(protoTag, ",") {
+			if strings.HasPrefix(s, "enum=") {
+				typeName = s[5:]
+				break
+			}
+		}
+		if len(typeName) != 0 {
+			enumMap := proto.EnumValueMap(typeName)
+			var enums = make([]interface{}, len(enumMap))
+			for v, i := range enumMap {
+				enums[i] = v
+			}
+			prop.Enum = enums
+		}
 	}
 }
 
