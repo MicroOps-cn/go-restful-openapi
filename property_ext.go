@@ -49,7 +49,7 @@ func setEnumValues(prop *spec.Schema, field reflect.StructField) {
 	// We use | to separate the enum values.  This value is chosen
 	// since it's unlikely to be useful in actual enumeration values.
 	if tag := field.Tag.Get("enum"); tag != "" {
-		enums := []interface{}{}
+		var enums []interface{}
 		for _, s := range strings.Split(tag, "|") {
 			enums = append(enums, s)
 		}
@@ -66,9 +66,10 @@ func setEnumValues(prop *spec.Schema, field reflect.StructField) {
 		}
 		if len(typeName) != 0 {
 			enumMap := proto.EnumValueMap(typeName)
-			var enums = make([]interface{}, len(enumMap))
+			var enums = make([]interface{}, len(enumMap)*2)
 			for v, i := range enumMap {
 				enums[i] = v
+				enums[len(enumMap)+int(i)] = i
 			}
 			prop.Enum = enums
 		}
