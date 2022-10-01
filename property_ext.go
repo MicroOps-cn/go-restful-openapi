@@ -45,7 +45,7 @@ func setGoNameValue(prop *spec.Schema, field reflect.StructField) {
 	}
 }
 
-func setEnumValues(prop *spec.Schema, field reflect.StructField) {
+func setEnumValues(b definitionBuilder, prop *spec.Schema, field reflect.StructField) {
 	// We use | to separate the enum values.  This value is chosen
 	// since it's unlikely to be useful in actual enumeration values.
 	if tag := field.Tag.Get("enum"); tag != "" {
@@ -66,12 +66,16 @@ func setEnumValues(prop *spec.Schema, field reflect.StructField) {
 		}
 		if len(typeName) != 0 {
 			enumMap := proto.EnumValueMap(typeName)
-			var enums = make([]interface{}, len(enumMap)*2)
+			var enums = make([]interface{}, len(enumMap))
 			for v, i := range enumMap {
 				enums[i] = v
-				enums[len(enumMap)+int(i)] = i
 			}
-			prop.Enum = enums
+			if _, ok := b.Definitions[typeName]; !ok {
+				schema := spec.Schema{}
+				schema.Enum = enums
+				b.Definitions[typeName] = schema
+			}
+			prop.Ref = spec.MustCreateRef("#/definitions/" + typeName)
 		}
 	}
 }
@@ -143,10 +147,10 @@ func setReadOnly(prop *spec.Schema, field reflect.StructField) {
 	}
 }
 
-func setPropertyMetadata(prop *spec.Schema, field reflect.StructField) {
+func setPropertyMetadata(b definitionBuilder, prop *spec.Schema, field reflect.StructField) {
 	setDescription(prop, field)
 	setDefaultValue(prop, field)
-	setEnumValues(prop, field)
+	setEnumValues(b, prop, field)
 	setFormat(prop, field)
 	setMinimum(prop, field)
 	setMaximum(prop, field)

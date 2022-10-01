@@ -2,7 +2,9 @@ package restfulspec
 
 import (
 	"encoding/json"
+	"github.com/emicklei/go-restful/v3"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/go-openapi/spec"
@@ -176,7 +178,7 @@ func (b definitionBuilder) buildProperty(field reflect.StructField, model *spec.
 		modelDescription = tag
 	}
 
-	setPropertyMetadata(&prop, field)
+	setPropertyMetadata(b, &prop, field)
 	if prop.Type != nil {
 		return jsonName, modelDescription, prop
 	}
@@ -254,7 +256,7 @@ func hasNamedJSONTag(field reflect.StructField) bool {
 }
 
 func (b definitionBuilder) buildStructTypeProperty(field reflect.StructField, jsonName string, model *spec.Schema) (nameJson string, prop spec.Schema) {
-	setPropertyMetadata(&prop, field)
+	setPropertyMetadata(b, &prop, field)
 	fieldType := field.Type
 	// check for anonymous
 	if len(fieldType.Name()) == 0 {
@@ -306,7 +308,7 @@ func (b definitionBuilder) buildStructTypeProperty(field reflect.StructField, js
 }
 
 func (b definitionBuilder) buildArrayTypeProperty(field reflect.StructField, jsonName, modelName string) (nameJson string, prop spec.Schema) {
-	setPropertyMetadata(&prop, field)
+	setPropertyMetadata(b, &prop, field)
 	fieldType := field.Type
 	if fieldType.Elem().Kind() == reflect.Uint8 {
 		stringt := "string"
@@ -338,7 +340,7 @@ func (b definitionBuilder) buildArrayTypeProperty(field reflect.StructField, jso
 
 func (b definitionBuilder) buildMapTypeProperty(field reflect.StructField, jsonName, modelName string) (nameJson string, prop spec.Schema) {
 	nameJson, prop = b.buildMapType(field.Type, jsonName, modelName)
-	setPropertyMetadata(&prop, field)
+	setPropertyMetadata(b, &prop, field)
 	return nameJson, prop
 }
 
@@ -394,7 +396,7 @@ func (b definitionBuilder) buildMapType(mapType reflect.Type, jsonName, modelNam
 	return jsonName, prop
 }
 func (b definitionBuilder) buildPointerTypeProperty(field reflect.StructField, jsonName, modelName string) (nameJson string, prop spec.Schema) {
-	setPropertyMetadata(&prop, field)
+	setPropertyMetadata(b, &prop, field)
 	fieldType := field.Type
 
 	// override type of pointer to list-likes
@@ -591,4 +593,39 @@ func (b definitionBuilder) jsonSchemaFormat(modelName string, modelKind reflect.
 	}
 
 	return "" // no format
+}
+
+func (b definitionBuilder) buildParameterEnum(r restful.Route, d spec.Definitions) {
+	for _, doc := range r.ParameterDocs {
+		param := doc.Data()
+		if ref, ok := param.Extensions["$ref"].(string); ok {
+			if _, ok := b.Definitions[ref]; !ok {
+				schema := spec.Schema{}
+				if numPossible := len(param.PossibleValues); numPossible > 0 {
+					// init Enum to our known size and populate it
+					schema.Enum = make([]interface{}, 0, numPossible)
+					for _, value := range param.PossibleValues {
+						schema.Enum = append(schema.Enum, value)
+					}
+					d[ref] = schema
+				} else if numAllowable := len(param.AllowableValues); numAllowable > 0 {
+					// If allowable values are defined, set the enum array to the sorted values
+					allowableSortedKeys := make([]string, 0, numAllowable)
+					for k := range param.AllowableValues {
+						allowableSortedKeys = append(allowableSortedKeys, k)
+					}
+
+					// sort away
+					sort.Strings(allowableSortedKeys)
+
+					// init Enum to our known size and populate it
+					schema.Enum = make([]interface{}, 0, numAllowable)
+					for _, key := range allowableSortedKeys {
+						schema.Enum = append(schema.Enum, param.AllowableValues[key])
+					}
+					d[ref] = schema
+				}
+			}
+		}
+	}
 }

@@ -23,6 +23,7 @@ func addDefinitionsFromRouteTo(r restful.Route, cfg Config, d spec.Definitions) 
 	if r.WriteSample != nil {
 		builder.addModel(reflect.TypeOf(r.WriteSample), "")
 	}
+	builder.buildParameterEnum(r, d)
 	for _, v := range r.ResponseErrors {
 		if v.Model == nil {
 			continue

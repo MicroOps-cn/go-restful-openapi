@@ -155,7 +155,6 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 	p := spec.Parameter{}
 	param := restfulParam.Data()
 	p.In = asParamType(param.Kind)
-
 	if param.AllowMultiple {
 		// If the param is an array apply the validations to the items in it
 		p.Type = arrayType
@@ -176,16 +175,15 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 		p.Minimum = param.Minimum
 		p.Maximum = param.Maximum
 	}
-
-	// Prefer PossibleValues over deprecated AllowableValues
-	if numPossible := len(param.PossibleValues); numPossible > 0 {
-		// init Enum to our known size and populate it
-		p.Enum = make([]interface{}, 0, numPossible)
-		for _, value := range param.PossibleValues {
-			p.Enum = append(p.Enum, value)
-		}
-	} else {
-		if numAllowable := len(param.AllowableValues); numAllowable > 0 {
+	if ref, ok := param.Extensions["$ref"].(string); !ok {
+		// Prefer PossibleValues over deprecated AllowableValues
+		if numPossible := len(param.PossibleValues); numPossible > 0 {
+			// init Enum to our known size and populate it
+			p.Enum = make([]interface{}, 0, numPossible)
+			for _, value := range param.PossibleValues {
+				p.Enum = append(p.Enum, value)
+			}
+		} else if numAllowable := len(param.AllowableValues); numAllowable > 0 {
 			// If allowable values are defined, set the enum array to the sorted values
 			allowableSortedKeys := make([]string, 0, numAllowable)
 			for k := range param.AllowableValues {
@@ -200,6 +198,12 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 			for _, key := range allowableSortedKeys {
 				p.Enum = append(p.Enum, param.AllowableValues[key])
 			}
+		}
+	} else {
+		p.Schema = &spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Ref: spec.MustCreateRef("#/definitions/" + ref),
+			},
 		}
 	}
 
