@@ -105,6 +105,11 @@ func setMinimum(prop *spec.Schema, field reflect.StructField) {
 	}
 }
 
+func setPattern(prop *spec.Schema, field reflect.StructField) {
+	if tag := field.Tag.Get("pattern"); tag != "" {
+		prop.Pattern = tag
+	}
+}
 func setType(prop *spec.Schema, field reflect.StructField) {
 	if tag := field.Tag.Get("type"); tag != "" {
 		// Check if the first two characters of the type tag are
@@ -154,6 +159,7 @@ func setPropertyMetadata(b definitionBuilder, prop *spec.Schema, field reflect.S
 	setFormat(prop, field)
 	setMinimum(prop, field)
 	setMaximum(prop, field)
+	setPattern(prop, field)
 	setUniqueItems(prop, field)
 	setType(prop, field)
 	setReadOnly(prop, field)
