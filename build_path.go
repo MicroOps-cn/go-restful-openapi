@@ -15,7 +15,8 @@ import (
 
 const (
 	// KeyOpenAPITags is a Metadata key for a restful Route
-	KeyOpenAPITags = "openapi.tags"
+	KeyOpenAPITags    = "openapi.tags"
+	KeyOpenAPIDisable = "openapi.disable"
 
 	// ExtensionPrefix is the only prefix accepted for VendorExtensible extension keys
 	ExtensionPrefix = "x-"
@@ -27,6 +28,9 @@ const (
 func buildPaths(ws *restful.WebService, cfg Config) spec.Paths {
 	p := spec.Paths{Paths: map[string]spec.PathItem{}}
 	for _, each := range ws.Routes() {
+		if each.Metadata[KeyOpenAPIDisable] != nil && each.Metadata[KeyOpenAPIDisable].(bool) {
+			continue
+		}
 		path, patterns := sanitizePath(each.Path)
 		existingPathItem, ok := p.Paths[path]
 		if !ok {
