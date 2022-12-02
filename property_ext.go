@@ -55,10 +55,14 @@ func setEnumValues(b definitionBuilder, prop *spec.Schema, field reflect.StructF
 		}
 		prop.Enum = enums
 		return
-	}
-	if protoTag := field.Tag.Get("protobuf"); protoTag != "" {
+	} else if protoTag := field.Tag.Get("protobuf"); protoTag != "" {
 		var typeName string
+		var hasRep bool
+
 		for _, s := range strings.Split(protoTag, ",") {
+			if s == "rep" {
+				hasRep = true
+			}
 			if strings.HasPrefix(s, "enum=") {
 				typeName = s[5:]
 				break
@@ -66,16 +70,27 @@ func setEnumValues(b definitionBuilder, prop *spec.Schema, field reflect.StructF
 		}
 		if len(typeName) != 0 {
 			enumMap := proto.EnumValueMap(typeName)
-			var enums = make([]interface{}, len(enumMap))
-			for v, i := range enumMap {
-				enums[i] = v
+			var enums = make([]interface{}, 0)
+			for v := range enumMap {
+				enums = append(enums, v)
 			}
 			if _, ok := b.Definitions[typeName]; !ok {
 				schema := spec.Schema{}
 				schema.Enum = enums
 				b.Definitions[typeName] = schema
 			}
-			prop.Ref = spec.MustCreateRef("#/definitions/" + typeName)
+			if hasRep {
+				prop.Type = spec.StringOrArray{"array"}
+				prop.Items = &spec.SchemaOrArray{
+					Schema: &spec.Schema{
+						SchemaProps: spec.SchemaProps{
+							Ref: spec.MustCreateRef("#/definitions/" + typeName),
+						},
+					},
+				}
+			} else {
+				prop.Ref = spec.MustCreateRef("#/definitions/" + typeName)
+			}
 		}
 	}
 }
