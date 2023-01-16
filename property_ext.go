@@ -73,6 +73,7 @@ func setEnumValues(b definitionBuilder, prop *spec.Schema, field reflect.StructF
 			var enums = make([]interface{}, 0)
 			for v := range enumMap {
 				enums = append(enums, v)
+				enums = append(enums, enumMap[v])
 			}
 			if _, ok := b.Definitions[typeName]; !ok {
 				schema := spec.Schema{}
