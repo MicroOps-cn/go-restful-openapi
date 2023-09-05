@@ -114,18 +114,31 @@ func buildOperation(ws *restful.WebService, r restful.Route, patterns map[string
 	// route specific params
 	for _, param := range r.ParameterDocs {
 		p := buildParameter(r, param, patterns[param.Data().Name], cfg)
+		if p.Name == "body" && p.In == "body" && r.ReadSample != nil {
+			p.Example = r.ReadSample
+			continue
+		}
 		o.Parameters = append(o.Parameters, p)
 	}
 	o.Responses = new(spec.Responses)
 	props := &o.Responses.ResponsesProps
 	props.StatusCodeResponses = make(map[int]spec.Response, len(r.ResponseErrors))
 	for k, v := range r.ResponseErrors {
-		r := buildResponse(v, cfg)
-		props.StatusCodeResponses[k] = r
+		rsp := buildResponse(r.Produces, v, cfg)
+		props.StatusCodeResponses[k] = rsp
 	}
 	if r.DefaultResponse != nil {
-		rsp := buildResponse(*r.DefaultResponse, cfg)
+		rsp := buildResponse(r.Produces, *r.DefaultResponse, cfg)
 		o.Responses.Default = &rsp
+	}
+	if _, ok := props.StatusCodeResponses[200]; !ok && r.WriteSample != nil {
+		rsp := spec.Response{ResponseProps: spec.ResponseProps{Description: http.StatusText(http.StatusOK)}}
+		for _, produce := range r.Produces {
+			if produce == "application/json" {
+				rsp.AddExample("application/json", r.WriteSample)
+			}
+		}
+		o.Responses.StatusCodeResponses[200] = rsp
 	}
 	if len(o.Responses.StatusCodeResponses) == 0 {
 		o.Responses.StatusCodeResponses[200] = spec.Response{ResponseProps: spec.ResponseProps{Description: http.StatusText(http.StatusOK)}}
@@ -264,9 +277,14 @@ func buildParameter(r restful.Route, restfulParam *restful.Parameter, pattern st
 	return p
 }
 
-func buildResponse(e restful.ResponseError, cfg Config) (r spec.Response) {
+func buildResponse(produces []string, e restful.ResponseError, cfg Config) (r spec.Response) {
 	r.Description = e.Message
 	if e.Model != nil {
+		for _, produce := range produces {
+			if produce == "application/json" {
+				r.AddExample("application/json", e.Model)
+			}
+		}
 		st := reflect.TypeOf(e.Model)
 		if st.Kind() == reflect.Ptr {
 			// For pointer type, use element type as the key; otherwise we'll
