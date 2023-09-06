@@ -116,7 +116,6 @@ func buildOperation(ws *restful.WebService, r restful.Route, patterns map[string
 		p := buildParameter(r, param, patterns[param.Data().Name], cfg)
 		if p.Name == "body" && p.In == "body" && r.ReadSample != nil {
 			p.Example = r.ReadSample
-			continue
 		}
 		o.Parameters = append(o.Parameters, p)
 	}
