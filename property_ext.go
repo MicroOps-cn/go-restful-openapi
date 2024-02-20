@@ -1,12 +1,13 @@
 package restfulspec
 
 import (
-	"github.com/gogo/protobuf/proto"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/go-openapi/spec"
+	"github.com/gogo/protobuf/proto"
 )
 
 func initPropExtensions(ext *spec.Extensions) {
@@ -45,6 +46,25 @@ func setGoNameValue(prop *spec.Schema, field reflect.StructField) {
 	}
 }
 
+type EnumItem struct {
+	name  string
+	value int32
+}
+
+type EnumItems []EnumItem
+
+func (e EnumItems) Len() int {
+	return len(e)
+}
+
+func (e EnumItems) Less(i, j int) bool {
+	return e[i].value < e[j].value
+}
+
+func (e EnumItems) Swap(i, j int) {
+	e[i], e[j] = e[j], e[i]
+}
+
 func setEnumValues(b definitionBuilder, prop *spec.Schema, field reflect.StructField) {
 	// We use | to separate the enum values.  This value is chosen
 	// since it's unlikely to be useful in actual enumeration values.
@@ -70,10 +90,15 @@ func setEnumValues(b definitionBuilder, prop *spec.Schema, field reflect.StructF
 		}
 		if len(typeName) != 0 {
 			enumMap := proto.EnumValueMap(typeName)
+			var enumItems EnumItems
+			for name, val := range enumMap {
+				enumItems = append(enumItems, EnumItem{value: val, name: name})
+			}
+			sort.Sort(enumItems)
 			var enums = make([]interface{}, 0)
-			for v := range enumMap {
-				enums = append(enums, v)
-				enums = append(enums, enumMap[v])
+			for _, item := range enumItems {
+				enums = append(enums, item.name)
+				enums = append(enums, item.value)
 			}
 			if _, ok := b.Definitions[typeName]; !ok {
 				schema := spec.Schema{}
