@@ -124,7 +124,7 @@ func (b definitionBuilder) addModel(st reflect.Type, nameOverride string) *spec.
 			sm.Properties[jsonName] = prop
 		}
 	}
-
+	sort.Strings(sm.Required)
 	// We always overwrite documentation if SwaggerDoc method exists
 	// "" is special for documenting the struct itself
 	if modelDoc, ok := fullDoc[""]; ok {
@@ -300,6 +300,7 @@ func (b definitionBuilder) buildStructTypeProperty(field reflect.StructField, js
 		// empty name signals skip property
 		return "", prop
 	}
+	sort.Strings(model.Required)
 	// simple struct
 	b.addModel(fieldType, "")
 	var pType = keyFrom(fieldType, b.Config)
